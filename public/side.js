@@ -1,12 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import {
-  doc,
-  getDoc,
-  getFirestore,
-  onSnapshot,
-  runTransaction
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-
 const countdownElement = document.getElementById("countdown");
 const progressFillElement = document.getElementById("progress-fill");
 const redButton = document.getElementById("red-button");
@@ -15,8 +6,8 @@ const statusElement = document.getElementById("status");
 const metaElement = document.getElementById("meta");
 
 const sessionId = new URL(window.location.href).searchParams.get("id");
-const firebaseConfig = window.SIDE_SELECTION_FIREBASE_CONFIG || {};
-const firestoreCollectionName = firebaseConfig.collectionName || "sideSessions";
+const sideSelectionConfig = window.SIDE_SELECTION_CONFIG || {};
+const apiBaseUrl = typeof sideSelectionConfig.apiBaseUrl === "string" ? sideSelectionConfig.apiBaseUrl.replace(/\/+$/, "") : "";
 
 const state = {
   createdAt: Date.now(),
@@ -30,9 +21,7 @@ const state = {
 };
 
 let countdownIntervalId = null;
-let unsubscribeSnapshot = null;
-let db = null;
-let sessionRef = null;
+let pollIntervalId = null;
 
 class SessionViewError extends Error {
   constructor(code, message, session = null) {
@@ -43,16 +32,8 @@ class SessionViewError extends Error {
   }
 }
 
-function hasFirebaseConfig(config) {
-  return Boolean(
-    config &&
-      typeof config.apiKey === "string" &&
-      config.apiKey &&
-      typeof config.projectId === "string" &&
-      config.projectId &&
-      typeof config.appId === "string" &&
-      config.appId
-  );
+function hasApiConfig() {
+  return Boolean(apiBaseUrl);
 }
 
 function getSideLabel(side) {
@@ -136,7 +117,7 @@ function render() {
   }
 
   if (state.mode === "config-error") {
-    metaElement.textContent = "Add your Firebase values to firebase-config.js.";
+    metaElement.textContent = "Add your Worker URL to side-config.js.";
     return;
   }
 
@@ -154,10 +135,11 @@ function normalizeSession(sessionData) {
   return {
     id: sessionData.id || sessionId,
     createdAt: Number(sessionData.createdAt) || Date.now(),
-    deadlineAt: Number(sessionData.deadlineAt) || Date.now(),
+    deadlineAt: Number(sessionData.deadlineAt || sessionData.expiresAt) || Date.now(),
     deadlineSource: sessionData.deadlineSource || "DURATION",
     selectedSide: sessionData.selectedSide ?? null,
-    status: sessionData.status || "PENDING"
+    status: sessionData.status || "PENDING",
+    durationSeconds: Number(sessionData.durationSeconds) || 300
   };
 }
 
@@ -169,27 +151,33 @@ function applySession(sessionData) {
   state.deadlineSource = session.deadlineSource;
   state.selectedSide = session.selectedSide;
   state.status = session.status;
-  state.durationMs = Math.max(0, session.deadlineAt - session.createdAt);
+  state.durationMs = Math.max(0, session.durationSeconds * 1000 || session.deadlineAt - session.createdAt);
   state.mode = "ready";
   render();
 }
 
 async function refreshSession() {
-  const snapshot = await getDoc(sessionRef);
+  const response = await fetch(`${apiBaseUrl}/api/side/${encodeURIComponent(sessionId)}`, {
+    cache: "no-store"
+  });
 
-  if (!snapshot.exists()) {
+  if (response.status === 404) {
     state.mode = "missing";
     render();
     return null;
   }
 
-  const session = normalizeSession(snapshot.data());
+  if (!response.ok) {
+    throw new Error(`Failed to fetch the session: ${response.status}`);
+  }
+
+  const session = normalizeSession(await response.json());
   applySession(session);
   return session;
 }
 
 async function submitSelection(side) {
-  if (!sessionRef || state.isSubmitting || state.status !== "PENDING" || getRemainingMilliseconds() === 0) {
+  if (!sessionId || state.isSubmitting || state.status !== "PENDING" || getRemainingMilliseconds() === 0) {
     return;
   }
 
@@ -197,34 +185,35 @@ async function submitSelection(side) {
   render();
 
   try {
-    await runTransaction(db, async (transaction) => {
-      const snapshot = await transaction.get(sessionRef);
-
-      if (!snapshot.exists()) {
-        throw new SessionViewError("NOT_FOUND", "This side selection session could not be found.");
-      }
-
-      const session = normalizeSession(snapshot.data());
-
-      if (session.status === "SELECTED") {
-        throw new SessionViewError("ALREADY_SELECTED", "A side has already been selected.", session);
-      }
-
-      if (session.status === "EXPIRED" || Date.now() >= session.deadlineAt) {
-        throw new SessionViewError("EXPIRED", "The side selection timer has expired.", {
-          ...session,
-          selectedSide: "BLUE",
-          status: "EXPIRED"
-        });
-      }
-
-      transaction.update(sessionRef, {
-        selectedSide: side,
-        status: "SELECTED",
-        selectedBy: "web",
-        resolvedAt: Date.now()
-      });
+    const response = await fetch(`${apiBaseUrl}/api/side/${encodeURIComponent(sessionId)}/select`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        side
+      })
     });
+
+    if (response.status === 404) {
+      throw new SessionViewError("NOT_FOUND", "This side selection session could not be found.");
+    }
+
+    if (response.status === 409) {
+      const latestSession = await refreshSession();
+
+      if (latestSession?.status === "SELECTED") {
+        throw new SessionViewError("ALREADY_SELECTED", "A side has already been selected.", latestSession);
+      }
+
+      throw new SessionViewError("EXPIRED", "The side selection timer has expired.", latestSession);
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to submit the selection: ${response.status}`);
+    }
+
+    applySession(await response.json());
   } catch (error) {
     if (error instanceof SessionViewError) {
       if (error.code === "NOT_FOUND") {
@@ -261,22 +250,16 @@ function startCountdown() {
   }, 1000);
 }
 
-function startRealtimeUpdates() {
-  unsubscribeSnapshot = onSnapshot(
-    sessionRef,
-    (snapshot) => {
-      if (!snapshot.exists()) {
-        state.mode = "missing";
-        render();
-        return;
-      }
+function startPolling() {
+  if (pollIntervalId) {
+    return;
+  }
 
-      applySession(snapshot.data());
-    },
-    () => {
+  pollIntervalId = window.setInterval(() => {
+    refreshSession().catch(() => {
       metaElement.textContent = "Connection issue. Retrying...";
-    }
-  );
+    });
+  }, 2000);
 }
 
 async function initializePage() {
@@ -286,22 +269,17 @@ async function initializePage() {
     return;
   }
 
-  if (!hasFirebaseConfig(firebaseConfig)) {
+  if (!hasApiConfig()) {
     state.mode = "config-error";
     render();
     return;
   }
 
-  const { collectionName: _collectionName, ...firebaseAppConfig } = firebaseConfig;
-  const app = initializeApp(firebaseAppConfig);
-  db = getFirestore(app);
-  sessionRef = doc(db, firestoreCollectionName, sessionId);
-
   try {
     const session = await refreshSession();
 
     if (session) {
-      startRealtimeUpdates();
+      startPolling();
     }
   } catch (error) {
     metaElement.textContent = "Connection issue. Retrying...";
@@ -317,8 +295,8 @@ blueButton.addEventListener("click", () => {
 });
 
 window.addEventListener("beforeunload", () => {
-  if (unsubscribeSnapshot) {
-    unsubscribeSnapshot();
+  if (pollIntervalId) {
+    window.clearInterval(pollIntervalId);
   }
 });
 
