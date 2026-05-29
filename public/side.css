@@ -2,21 +2,21 @@
 
 :root {
   color-scheme: dark;
-  --bg-top: #040816;
+  --bg-top: #050915;
   --bg-bottom: #01030a;
-  --panel: rgba(9, 15, 32, 0.88);
-  --panel-border: rgba(120, 136, 177, 0.18);
-  --text-main: #f8fafc;
-  --text-muted: #cbd5e1;
-  --text-soft: rgba(226, 232, 240, 0.72);
-  --progress-track: rgba(73, 87, 124, 0.32);
-  --progress-fill: linear-gradient(90deg, #ff5353 0%, #cb5ea7 45%, #4d8dff 100%);
-  --red: linear-gradient(135deg, #ff5349 0%, #d13161 100%);
-  --red-hover: linear-gradient(135deg, #ff6a61 0%, #dd4776 100%);
-  --blue: linear-gradient(135deg, #4983ff 0%, #6268ff 100%);
-  --blue-hover: linear-gradient(135deg, #6296ff 0%, #7880ff 100%);
-  --disabled: rgba(89, 102, 131, 0.78);
-  --shadow: 0 38px 120px rgba(1, 4, 16, 0.72);
+  --panel: linear-gradient(180deg, rgba(10, 15, 29, 0.92) 0%, rgba(6, 10, 20, 0.92) 100%);
+  --panel-border: rgba(169, 178, 210, 0.16);
+  --text-main: #f7f8fb;
+  --text-muted: #c4cada;
+  --text-soft: rgba(216, 222, 236, 0.64);
+  --progress-track: rgba(76, 87, 118, 0.28);
+  --progress-fill: linear-gradient(90deg, #ff5151 0%, #b85fab 44%, #4b8cff 100%);
+  --red: linear-gradient(135deg, #f65956 0%, #c9386e 100%);
+  --red-hover: linear-gradient(135deg, #ff6f69 0%, #d94a80 100%);
+  --blue: linear-gradient(135deg, #4f87ff 0%, #5f6efe 100%);
+  --blue-hover: linear-gradient(135deg, #6898ff 0%, #727dfd 100%);
+  --disabled: rgba(84, 95, 120, 0.74);
+  --shadow: 0 40px 120px rgba(1, 4, 16, 0.68);
   --inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -30,13 +30,12 @@ body {
   font-family: "Rajdhani", "Segoe UI", sans-serif;
   color: var(--text-main);
   background:
-    radial-gradient(circle at 18% 22%, rgba(44, 134, 255, 0.2), transparent 20%),
-    radial-gradient(circle at 82% 20%, rgba(255, 64, 92, 0.18), transparent 18%),
-    radial-gradient(circle at 50% 82%, rgba(124, 92, 255, 0.1), transparent 24%),
-    linear-gradient(rgba(82, 101, 148, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(82, 101, 148, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 16% 18%, rgba(46, 130, 255, 0.12), transparent 18%),
+    radial-gradient(circle at 84% 18%, rgba(255, 70, 90, 0.1), transparent 17%),
+    linear-gradient(rgba(82, 101, 148, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(82, 101, 148, 0.035) 1px, transparent 1px),
     linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
-  background-size: auto, auto, auto, 36px 36px, 36px 36px, auto;
+  background-size: auto, auto, 42px 42px, 42px 42px, auto;
 }
 
 .page {
@@ -55,31 +54,32 @@ body {
   border-radius: 30px;
   background: var(--panel);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px);
   text-align: center;
   isolation: isolate;
 }
 
 .panel__noise,
-.panel__glow {
+.panel__glow,
+.panel__logo {
   position: absolute;
   pointer-events: none;
 }
 
 .panel__noise {
   inset: 0;
-  opacity: 0.24;
+  opacity: 0.18;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 44%),
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 34%);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 46%),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.03), transparent 34%);
 }
 
 .panel__glow {
-  top: -90px;
-  width: 230px;
-  height: 230px;
-  filter: blur(28px);
-  opacity: 0.28;
+  top: -120px;
+  width: 240px;
+  height: 240px;
+  filter: blur(42px);
+  opacity: 0.14;
   border-radius: 999px;
 }
 
@@ -91,6 +91,20 @@ body {
 .panel__glow--red {
   right: -90px;
   background: rgba(239, 68, 68, 0.85);
+}
+
+.panel__logo {
+  inset: auto;
+  top: 52%;
+  left: 50%;
+  width: min(520px, 82%);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(circle at center, rgba(5, 9, 21, 0) 0%, rgba(5, 9, 21, 0.24) 64%, rgba(5, 9, 21, 0.7) 100%),
+    url("./assets/timesup-logo.png") center/contain no-repeat;
+  opacity: 0.08;
+  filter: grayscale(0.08) saturate(0.92);
 }
 
 .brand-lockup,
@@ -106,81 +120,46 @@ body {
 .brand-lockup {
   display: grid;
   justify-items: center;
-  gap: 16px;
-  margin-bottom: 10px;
-}
-
-.brand-mark {
-  position: relative;
-  width: min(176px, 42vw);
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
-    rgba(8, 13, 27, 0.7);
-  border: 1px solid rgba(156, 163, 175, 0.18);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(255, 255, 255, 0.02),
-    0 30px 80px rgba(2, 6, 23, 0.45);
-}
-
-.brand-mark::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  background: conic-gradient(from 205deg, rgba(47, 151, 255, 0.95), rgba(63, 89, 255, 0.4), rgba(255, 82, 82, 0.95), rgba(47, 151, 255, 0.95));
-  mask: radial-gradient(circle at center, transparent 60%, black 61%);
-  opacity: 0.95;
-}
-
-.brand-mark__image {
-  position: relative;
-  width: calc(100% - 18px);
-  height: calc(100% - 18px);
-  object-fit: cover;
-  border-radius: 999px;
-  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.36);
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 .eyebrow {
   margin: 0 0 6px;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
-  font-size: 0.85rem;
+  letter-spacing: 0.26em;
+  font-size: 0.78rem;
   color: var(--text-soft);
 }
 
 h1 {
   margin: 0;
   font-family: "Oxanium", "Rajdhani", sans-serif;
-  font-size: clamp(2rem, 4vw, 3rem);
-  letter-spacing: 0.05em;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .countdown {
-  margin: 20px 0 22px;
+  margin: 24px 0 24px;
   font-family: "Oxanium", "Rajdhani", sans-serif;
-  font-size: clamp(2.5rem, 10vw, 6.5rem);
+  font-size: clamp(2.55rem, 10vw, 6.3rem);
   font-weight: 700;
   line-height: 1;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   overflow-wrap: anywhere;
   text-shadow:
-    0 0 18px rgba(255, 255, 255, 0.08),
-    0 0 36px rgba(77, 141, 255, 0.1);
+    0 0 16px rgba(255, 255, 255, 0.06),
+    0 0 26px rgba(77, 141, 255, 0.08);
 }
 
 .progress {
   width: 100%;
-  height: 18px;
+  height: 14px;
   border-radius: 999px;
   overflow: hidden;
   background: var(--progress-track);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.11);
   box-shadow: var(--inner-shadow);
 }
 
@@ -189,7 +168,7 @@ h1 {
   height: 100%;
   background: var(--progress-fill);
   transform-origin: left center;
-  box-shadow: 0 0 18px rgba(106, 113, 255, 0.35);
+  box-shadow: 0 0 14px rgba(106, 113, 255, 0.24);
 }
 
 .actions {
@@ -201,7 +180,7 @@ h1 {
 
 .side-button {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 18px 16px;
   font: inherit;
   font-size: clamp(1.15rem, 3vw, 1.4rem);
@@ -247,16 +226,16 @@ h1 {
 
 .status {
   min-height: 2.5em;
-  margin: 28px 0 10px;
+  margin: 26px 0 10px;
   font-family: "Oxanium", "Rajdhani", sans-serif;
-  font-size: clamp(1.18rem, 3vw, 1.52rem);
+  font-size: clamp(1.08rem, 3vw, 1.38rem);
   font-weight: 700;
 }
 
 .meta {
   margin: 0;
-  color: var(--text-muted);
-  font-size: 1rem;
+  color: var(--text-soft);
+  font-size: 0.98rem;
 }
 
 @media (max-width: 520px) {
@@ -271,9 +250,5 @@ h1 {
 
   .side-button {
     padding: 16px 12px;
-  }
-
-  .brand-mark {
-    width: min(148px, 46vw);
   }
 }
