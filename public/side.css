@@ -103,8 +103,8 @@ body {
   background:
     radial-gradient(circle at center, rgba(5, 9, 21, 0) 0%, rgba(5, 9, 21, 0.24) 64%, rgba(5, 9, 21, 0.7) 100%),
     url("./assets/timesup-logo.png") center/contain no-repeat;
-  opacity: 0.08;
-  filter: grayscale(0.08) saturate(0.92);
+  opacity: 0.06;
+  filter: saturate(0.84) contrast(0.96);
 }
 
 .brand-lockup,
