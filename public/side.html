@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Side Selection</title>
+    <link rel="stylesheet" href="./side.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel" aria-labelledby="page-title">
+        <p class="eyebrow">Tournament Timer</p>
+        <h1 id="page-title">Side Selection</h1>
+
+        <div id="countdown" class="countdown" aria-live="polite">05:00</div>
+
+        <div class="progress" aria-hidden="true">
+          <div id="progress-fill" class="progress__fill"></div>
+        </div>
+
+        <div class="actions">
+          <button id="red-button" class="side-button side-button--red" type="button">
+            Red Side
+          </button>
+          <button id="blue-button" class="side-button side-button--blue" type="button">
+            Blue Side
+          </button>
+        </div>
+
+        <p id="status" class="status">Waiting for side selection...</p>
+        <p id="meta" class="meta">Choose from this page or from Discord.</p>
+      </section>
+    </main>
+
+    <script src="./firebase-config.js"></script>
+    <script type="module" src="./side.js"></script>
+  </body>
+</html>

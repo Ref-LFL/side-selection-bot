@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isValidPublicSelectionWrite() {
+      return resource.data.status == "PENDING"
+        && request.time.toMillis() < resource.data.deadlineAt
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "selectedSide",
+          "status",
+          "selectedBy",
+          "resolvedAt"
+        ])
+        && request.resource.data.selectedSide in ["RED", "BLUE"]
+        && request.resource.data.status == "SELECTED"
+        && request.resource.data.selectedBy == "web"
+        && request.resource.data.resolvedAt is int;
+    }
+
+    match /sideSessions/{sessionId} {
+      allow read: if true;
+      allow update: if isValidPublicSelectionWrite();
+      allow create, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "discord-side-selection-bot",
+  "version": "1.0.0",
+  "description": "Discord side-selection bot with an external web countdown page for esports tournaments.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "verify": "node scripts/verify-local.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "esports",
+    "firebase",
+    "github-pages",
+    "timer"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^13.0.2"
+  }
+}
