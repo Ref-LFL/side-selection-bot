@@ -153,6 +153,13 @@ function applySession(sessionData) {
   state.status = session.status;
   state.durationMs = Math.max(0, session.durationSeconds * 1000 || session.deadlineAt - session.createdAt);
   state.mode = "ready";
+
+  if (state.status === "PENDING") {
+    startPolling();
+  } else {
+    stopPolling();
+  }
+
   render();
 }
 
@@ -163,6 +170,7 @@ async function refreshSession() {
 
   if (response.status === 404) {
     state.mode = "missing";
+    stopPolling();
     render();
     return null;
   }
@@ -262,25 +270,32 @@ function startPolling() {
   }, 2000);
 }
 
+function stopPolling() {
+  if (!pollIntervalId) {
+    return;
+  }
+
+  window.clearInterval(pollIntervalId);
+  pollIntervalId = null;
+}
+
 async function initializePage() {
   if (!sessionId) {
     state.mode = "missing";
+    stopPolling();
     render();
     return;
   }
 
   if (!hasApiConfig()) {
     state.mode = "config-error";
+    stopPolling();
     render();
     return;
   }
 
   try {
-    const session = await refreshSession();
-
-    if (session) {
-      startPolling();
-    }
+    await refreshSession();
   } catch (error) {
     metaElement.textContent = "Connection issue. Retrying...";
   }
@@ -295,9 +310,7 @@ blueButton.addEventListener("click", () => {
 });
 
 window.addEventListener("beforeunload", () => {
-  if (pollIntervalId) {
-    window.clearInterval(pollIntervalId);
-  }
+  stopPolling();
 });
 
 startCountdown();
