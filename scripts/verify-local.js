@@ -1,184 +1,204 @@
 const assert = require("node:assert/strict");
-const { buildSelectionUrl } = require("../src/bot");
-const {
-  canUseSideSelection,
-  GuildSettingsService,
-  parseTimerRoleCommand
-} = require("../src/guild-settings");
-const { parseSideCommand, SessionError, SideSelectionService } = require("../src/sessions");
-const { InMemoryGuildSettingsStore, InMemorySessionStore } = require("../src/store");
+const path = require("path");
+const { pathToFileURL } = require("node:url");
+
+async function importModule(relativePath) {
+  const moduleUrl = pathToFileURL(path.resolve(__dirname, "..", relativePath));
+  return import(moduleUrl.href);
+}
 
 async function main() {
   const now = Date.UTC(2026, 4, 29, 10, 0, 0);
   const defaultDurationMs = 300000;
+  const core = await importModule("worker/core.mjs");
+  const commands = await importModule("worker/commands.mjs");
 
-  const defaultCommand = parseSideCommand("!side", defaultDurationMs, now);
-  assert.ok(defaultCommand);
-  assert.equal(defaultCommand.isValid, true);
-  assert.equal(defaultCommand.deadlineSource, "DURATION");
-  assert.equal(defaultCommand.deadlineAt, now + defaultDurationMs);
+  const defaultDeadline = core.parseDeadlineInput(null, defaultDurationMs, now);
+  assert.equal(defaultDeadline.deadlineSource, "DURATION");
+  assert.equal(defaultDeadline.deadlineAt, now + defaultDurationMs);
 
-  const timestampCommand = parseSideCommand("!side <t:1780480800:F>", defaultDurationMs, now);
-  assert.ok(timestampCommand);
-  assert.equal(timestampCommand.isValid, true);
-  assert.equal(timestampCommand.deadlineSource, "TIMESTAMP");
-  assert.equal(timestampCommand.deadlineAt, 1780480800 * 1000);
+  const unixDeadline = core.parseDeadlineInput("1780480800", defaultDurationMs, now);
+  assert.equal(unixDeadline.deadlineSource, "TIMESTAMP");
+  assert.equal(unixDeadline.deadlineAt, 1780480800 * 1000);
 
-  const invalidCommand = parseSideCommand("!side tomorrow", defaultDurationMs, now);
-  assert.ok(invalidCommand);
-  assert.equal(invalidCommand.isValid, false);
+  const discordDeadline = core.parseDeadlineInput("<t:1780480800:F>", defaultDurationMs, now);
+  assert.equal(discordDeadline.deadlineSource, "TIMESTAMP");
+  assert.equal(discordDeadline.deadlineAt, 1780480800 * 1000);
 
-  assert.equal(parseSideCommand("hello world", defaultDurationMs, now), null);
+  assert.throws(
+    () => core.parseDeadlineInput("tomorrow", defaultDurationMs, now),
+    (error) => error instanceof core.SessionError && error.code === "INVALID_DEADLINE"
+  );
 
-  const timerViewCommand = parseTimerRoleCommand("!timer role view");
-  assert.ok(timerViewCommand);
-  assert.equal(timerViewCommand.isValid, true);
-  assert.equal(timerViewCommand.action, "view");
-
-  const timerClearCommand = parseTimerRoleCommand("!timer role clear");
-  assert.ok(timerClearCommand);
-  assert.equal(timerClearCommand.isValid, true);
-  assert.equal(timerClearCommand.action, "clear");
-
-  const timerSetCommand = parseTimerRoleCommand("!timer role <@&1234567890>");
-  assert.ok(timerSetCommand);
-  assert.equal(timerSetCommand.isValid, true);
-  assert.equal(timerSetCommand.action, "set");
-  assert.equal(timerSetCommand.roleId, "1234567890");
-
-  const timerSetFriendlyCommand = parseTimerRoleCommand("!timer role:<@&1234567890> allow to used");
-  assert.ok(timerSetFriendlyCommand);
-  assert.equal(timerSetFriendlyCommand.isValid, true);
-  assert.equal(timerSetFriendlyCommand.action, "set");
-
-  const timerInvalidCommand = parseTimerRoleCommand("!timer role maybe");
-  assert.ok(timerInvalidCommand);
-  assert.equal(timerInvalidCommand.isValid, false);
-
-  assert.equal(parseTimerRoleCommand("!side"), null);
-
-  const guildSettingsService = new GuildSettingsService({
-    store: new InMemoryGuildSettingsStore()
-  });
-
-  assert.equal(await guildSettingsService.getGuildSetting("guild-1"), null);
-
-  await guildSettingsService.setAllowedRole({
+  const session = core.createSessionRecord({
+    id: "session-1",
     guildId: "guild-1",
-    roleId: "role-1",
-    roleName: "Tournament Admin",
-    updatedBy: "user-1",
-    updatedAt: now
+    channelId: "channel-1",
+    createdBy: "user-1",
+    pingRoleId: "role-1",
+    pingRoleName: "Galions",
+    deadlineAt: now + 600000,
+    deadlineSource: "TIMESTAMP",
+    sideDurationMs: defaultDurationMs,
+    nowMs: now
   });
 
-  const storedSetting = await guildSettingsService.getGuildSetting("guild-1");
-  assert.equal(storedSetting.allowedRoleId, "role-1");
-  assert.equal(storedSetting.allowedRoleName, "Tournament Admin");
+  assert.equal(session.status, "PENDING");
+  assert.equal(session.selectedSide, null);
+  assert.equal(session.pingRoleId, "role-1");
+
+  const selectionUrl = core.buildSelectionUrl("https://example.github.io/side-selection-bot", session.id);
+  assert.equal(
+    selectionUrl,
+    `https://example.github.io/side-selection-bot/side.html?id=${encodeURIComponent(session.id)}`
+  );
+
+  const pendingMessage = core.buildSideSelectionMessage(session, "https://example.github.io/side-selection-bot", {
+    mentionMode: "ping"
+  });
+  assert.equal(pendingMessage.content, "<@&role-1>");
+  assert.equal(pendingMessage.components.length, 2);
+  assert.equal(pendingMessage.components[0].components[0].style, 4);
+  assert.equal(pendingMessage.components[0].components[1].style, 1);
+  assert.equal(pendingMessage.components[1].components[0].label, "Lock Side");
+  assert.equal(pendingMessage.components[1].components[0].disabled, true);
+  assert.equal(pendingMessage.components[1].components[1].label, "Cancel");
+
+  const tentativeMessage = core.buildSideSelectionMessage(
+    {
+      ...session,
+      selectedSide: "BLUE",
+      selectedBy: "user-2"
+    },
+    "https://example.github.io/side-selection-bot"
+  );
+  assert.equal(tentativeMessage.embeds[0].fields[0].name, "Current Choice");
+  assert.equal(tentativeMessage.components[1].components[0].label, "Lock Blue Side");
+  assert.equal(tentativeMessage.components[1].components[0].disabled, false);
+
+  const selectedMessage = core.buildSideSelectionMessage(
+    {
+      ...session,
+      status: "SELECTED",
+      selectedSide: "RED",
+      selectedBy: "123456789"
+    },
+    "https://example.github.io/side-selection-bot"
+  );
+  assert.equal(selectedMessage.embeds[0].title, "Red Side Selected");
+  assert.equal(selectedMessage.components[0].components[0].style, 2);
+  assert.equal(selectedMessage.components[0].components[1].style, 2);
+  assert.equal(selectedMessage.components[1].components[0].disabled, true);
+  assert.equal(selectedMessage.components[1].components[1].disabled, true);
+
+  const expiredMessage = core.buildSideSelectionMessage(
+    {
+      ...session,
+      status: "EXPIRED",
+      selectedSide: "BLUE"
+    },
+    "https://example.github.io/side-selection-bot"
+  );
+  assert.equal(expiredMessage.embeds[0].title, "Blue Side Applied");
+
+  const cancelledMessage = core.buildSideSelectionMessage(
+    {
+      ...session,
+      status: "CANCELLED",
+      selectedBy: "123456789"
+    },
+    "https://example.github.io/side-selection-bot"
+  );
+  assert.equal(cancelledMessage.embeds[0].title, "Side Selection Cancelled");
+
+  const publicSession = core.toPublicSession(session, now + 1000);
+  assert.equal(publicSession.id, "session-1");
+  assert.equal(publicSession.createdAt, now);
+  assert.equal(publicSession.durationSeconds, 600);
 
   assert.equal(
-    canUseSideSelection({
+    core.canUseSideSelection({
       isAdministrator: true,
       memberRoleIds: [],
       allowedRoleId: null
     }),
     true
   );
-
   assert.equal(
-    canUseSideSelection({
+    core.canUseSideSelection({
       isAdministrator: false,
       memberRoleIds: [],
       allowedRoleId: null
     }),
     false
   );
-
   assert.equal(
-    canUseSideSelection({
+    core.canUseSideSelection({
       isAdministrator: false,
       memberRoleIds: ["role-1"],
       allowedRoleId: "role-1"
     }),
     true
   );
-
   assert.equal(
-    canUseSideSelection({
+    core.canControlPendingSelection({
+      session,
       isAdministrator: false,
-      memberRoleIds: ["role-2"],
-      allowedRoleId: "role-1"
+      memberRoleIds: ["role-1"],
+      allowedRoleId: null
+    }),
+    true
+  );
+  assert.equal(
+    core.canControlPendingSelection({
+      session,
+      isAdministrator: false,
+      memberRoleIds: ["staff-role"],
+      allowedRoleId: "staff-role"
     }),
     false
   );
-
-  await guildSettingsService.clearAllowedRole("guild-1");
-  assert.equal(await guildSettingsService.getGuildSetting("guild-1"), null);
-
-  let currentTime = now;
-  const sessions = new SideSelectionService({
-    store: new InMemorySessionStore(),
-    sideDurationMs: defaultDurationMs,
-    now: () => currentTime
-  });
-
-  const futureSession = await sessions.createSession({
-    guildId: "guild-1",
-    channelId: "channel-1",
-    deadlineAt: now + 600000,
-    deadlineSource: "TIMESTAMP"
-  });
-
-  assert.equal(futureSession.status, "PENDING");
-  assert.equal(futureSession.selectedSide, null);
-
-  const attachedSession = await sessions.attachMessage(futureSession.id, "message-1");
-  assert.equal(attachedSession.messageId, "message-1");
-
-  const selectedSession = await sessions.selectSide(futureSession.id, "RED", "tester");
-  assert.equal(selectedSession.status, "SELECTED");
-  assert.equal(selectedSession.selectedSide, "RED");
-  assert.equal(selectedSession.selectedBy, "tester");
-
-  const alreadyExpiredSession = await sessions.createSession({
-    guildId: "guild-2",
-    channelId: "channel-2",
-    deadlineAt: now - 1000,
-    deadlineSource: "TIMESTAMP"
-  });
-
-  assert.equal(alreadyExpiredSession.status, "EXPIRED");
-  assert.equal(alreadyExpiredSession.selectedSide, "BLUE");
-
-  const expiringSession = await sessions.createSession({
-    guildId: "guild-3",
-    channelId: "channel-3",
-    deadlineAt: now + 1000,
-    deadlineSource: "TIMESTAMP"
-  });
-
-  currentTime = now + 2000;
-
-  await assert.rejects(
-    () => sessions.selectSide(expiringSession.id, "BLUE", "tester"),
-    (error) =>
-      error instanceof SessionError &&
-      error.code === "EXPIRED" &&
-      error.session &&
-      error.session.selectedSide === "BLUE"
-  );
-
-  const expiredSnapshot = await sessions.getSession(expiringSession.id);
-  assert.equal(expiredSnapshot.status, "EXPIRED");
-  assert.equal(expiredSnapshot.selectedSide, "BLUE");
-
-  const pendingSessions = await sessions.listPendingSessions();
-  assert.equal(pendingSessions.length, 0);
-
-  const selectionUrl = buildSelectionUrl("https://example.github.io/side-selection-bot", futureSession.id);
   assert.equal(
-    selectionUrl,
-    `https://example.github.io/side-selection-bot/side.html?id=${encodeURIComponent(futureSession.id)}`
+    core.canCancelSideSelection({
+      isAdministrator: false,
+      memberRoleIds: ["staff-role"],
+      allowedRoleId: "staff-role"
+    }),
+    true
   );
+  assert.equal(
+    core.buildResultNotification({
+      ...session,
+      status: "CANCELLED"
+    }),
+    "<@user-1>\n- Side selection cancelled."
+  );
+
+  assert.equal(commands.SLASH_COMMANDS.length, 2);
+  assert.equal(commands.SLASH_COMMANDS[0].name, "side");
+  assert.equal(commands.SLASH_COMMANDS[1].name, "timer");
+  assert.deepEqual(commands.parseTimerRoleOptions([{ name: "role", options: [{ name: "view" }] }]), {
+    action: "view"
+  });
+  assert.deepEqual(
+    commands.parseTimerRoleOptions([
+      {
+        name: "role",
+        options: [
+          {
+            name: "set",
+            options: [{ name: "role", value: "1234567890" }]
+          }
+        ]
+      }
+    ]),
+    {
+      action: "set",
+      roleId: "1234567890"
+    }
+  );
+
+  await importModule("worker/index.mjs");
 
   console.log("Local verification passed.");
 }

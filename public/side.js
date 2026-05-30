@@ -61,8 +61,16 @@ function getStatusMessage() {
     return "This side selection session could not be found.";
   }
 
+  if (state.status === "CANCELLED") {
+    return "This side selection has been cancelled.";
+  }
+
   if (state.status === "SELECTED") {
     return `The selected side is: ${getSideLabel(state.selectedSide)}`;
+  }
+
+  if (state.status === "PENDING" && state.selectedSide) {
+    return `Current choice: ${getSideLabel(state.selectedSide)}. Waiting for lock confirmation.`;
   }
 
   if (state.status === "EXPIRED" || getRemainingMilliseconds() === 0) {
@@ -126,9 +134,16 @@ function render() {
     return;
   }
 
+  if (state.status === "CANCELLED") {
+    metaElement.textContent = "Selection is closed.";
+    return;
+  }
+
   metaElement.textContent = state.isSubmitting
     ? "Saving your side selection..."
-    : "Choose from this page or from Discord.";
+    : state.selectedSide && state.status === "PENDING"
+      ? "The current choice can still change until it is locked or the timer ends."
+      : "Choose from this page or from Discord.";
 }
 
 function normalizeSession(sessionData) {
