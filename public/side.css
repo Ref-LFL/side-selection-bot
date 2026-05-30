@@ -110,7 +110,7 @@ body {
 .brand-lockup,
 .countdown,
 .progress,
-.actions,
+.tracker-note,
 .status,
 .meta {
   position: relative;
@@ -171,57 +171,32 @@ h1 {
   box-shadow: 0 0 14px rgba(106, 113, 255, 0.24);
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+.tracker-note {
   margin-top: 28px;
-}
-
-.side-button {
+  padding: 18px 18px 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 18px 16px;
-  font: inherit;
-  font-size: clamp(1.15rem, 3vw, 1.4rem);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.02) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.tracker-note__title,
+.tracker-note__text {
+  margin: 0;
+}
+
+.tracker-note__title {
+  font-family: "Oxanium", "Rajdhani", sans-serif;
+  font-size: 0.98rem;
   font-weight: 700;
-  color: #ffffff;
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.side-button:hover:not(:disabled),
-.side-button:focus-visible:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 12px 24px rgba(15, 23, 42, 0.28);
-  filter: saturate(1.08);
-}
-
-.side-button:disabled {
-  cursor: not-allowed;
-  background: var(--disabled);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.side-button--red {
-  background: var(--red);
-}
-
-.side-button--red:hover:not(:disabled),
-.side-button--red:focus-visible:not(:disabled) {
-  background: var(--red-hover);
-}
-
-.side-button--blue {
-  background: var(--blue);
-}
-
-.side-button--blue:hover:not(:disabled),
-.side-button--blue:focus-visible:not(:disabled) {
-  background: var(--blue-hover);
+.tracker-note__text {
+  margin-top: 8px;
+  color: var(--text-soft);
+  font-size: 1rem;
 }
 
 .status {
@@ -242,13 +217,5 @@ h1 {
   .panel {
     padding: 22px 18px 24px;
     border-radius: 24px;
-  }
-
-  .actions {
-    gap: 12px;
-  }
-
-  .side-button {
-    padding: 16px 12px;
   }
 }

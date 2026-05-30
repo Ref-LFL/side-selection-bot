@@ -129,7 +129,7 @@ function getSelectedByLabel(session) {
   }
 
   if (session.selectedBy === "web") {
-    return "Selection page";
+    return "Timer tracker";
   }
 
   if (/^\d+$/.test(session.selectedBy)) {
@@ -198,8 +198,8 @@ function buildPendingEmbed(session, selectionUrl) {
       inline: false
     },
     {
-      name: "Selection Page",
-      value: `[Open side selection](${selectionUrl})`,
+      name: "Timer Tracker",
+      value: `[Open timer tracker](${selectionUrl})`,
       inline: false
     },
     {

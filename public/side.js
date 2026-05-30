@@ -1,7 +1,5 @@
 const countdownElement = document.getElementById("countdown");
 const progressFillElement = document.getElementById("progress-fill");
-const redButton = document.getElementById("red-button");
-const blueButton = document.getElementById("blue-button");
 const statusElement = document.getElementById("status");
 const metaElement = document.getElementById("meta");
 
@@ -16,21 +14,11 @@ const state = {
   status: "PENDING",
   durationMs: 300000,
   deadlineSource: "DURATION",
-  isSubmitting: false,
   mode: "loading"
 };
 
 let countdownIntervalId = null;
 let pollIntervalId = null;
-
-class SessionViewError extends Error {
-  constructor(code, message, session = null) {
-    super(message);
-    this.name = "SessionViewError";
-    this.code = code;
-    this.session = session;
-  }
-}
 
 function hasApiConfig() {
   return Boolean(apiBaseUrl);
@@ -105,18 +93,9 @@ function formatCountdown(milliseconds) {
 function render() {
   const remainingMilliseconds = getRemainingMilliseconds();
   const progressRatio = state.durationMs > 0 ? remainingMilliseconds / state.durationMs : 0;
-  const isLocked =
-    state.mode === "loading" ||
-    state.mode === "config-error" ||
-    state.mode === "missing" ||
-    state.isSubmitting ||
-    state.status !== "PENDING" ||
-    remainingMilliseconds === 0;
 
   countdownElement.textContent = formatCountdown(remainingMilliseconds);
   progressFillElement.style.transform = `scaleX(${Math.max(0, Math.min(1, progressRatio))})`;
-  redButton.disabled = isLocked;
-  blueButton.disabled = isLocked;
   statusElement.textContent = getStatusMessage();
 
   if (state.mode === "loading") {
@@ -139,11 +118,10 @@ function render() {
     return;
   }
 
-  metaElement.textContent = state.isSubmitting
-    ? "Saving your side selection..."
-    : state.selectedSide && state.status === "PENDING"
+  metaElement.textContent =
+    state.selectedSide && state.status === "PENDING"
       ? "The current choice can still change until it is locked or the timer ends."
-      : "Choose from this page or from Discord.";
+      : "Track the live timer here. Side actions happen in Discord.";
 }
 
 function normalizeSession(sessionData) {
@@ -199,70 +177,6 @@ async function refreshSession() {
   return session;
 }
 
-async function submitSelection(side) {
-  if (!sessionId || state.isSubmitting || state.status !== "PENDING" || getRemainingMilliseconds() === 0) {
-    return;
-  }
-
-  state.isSubmitting = true;
-  render();
-
-  try {
-    const response = await fetch(`${apiBaseUrl}/api/side/${encodeURIComponent(sessionId)}/select`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        side
-      })
-    });
-
-    if (response.status === 404) {
-      throw new SessionViewError("NOT_FOUND", "This side selection session could not be found.");
-    }
-
-    if (response.status === 409) {
-      const latestSession = await refreshSession();
-
-      if (latestSession?.status === "SELECTED") {
-        throw new SessionViewError("ALREADY_SELECTED", "A side has already been selected.", latestSession);
-      }
-
-      throw new SessionViewError("EXPIRED", "The side selection timer has expired.", latestSession);
-    }
-
-    if (!response.ok) {
-      throw new Error(`Failed to submit the selection: ${response.status}`);
-    }
-
-    applySession(await response.json());
-  } catch (error) {
-    if (error instanceof SessionViewError) {
-      if (error.code === "NOT_FOUND") {
-        state.mode = "missing";
-        render();
-        return;
-      }
-
-      if (error.session) {
-        applySession(error.session);
-      } else {
-        await refreshSession();
-      }
-
-      return;
-    }
-
-    await refreshSession().catch(() => {
-      metaElement.textContent = "Connection issue. Please try again.";
-    });
-  } finally {
-    state.isSubmitting = false;
-    render();
-  }
-}
-
 function startCountdown() {
   if (countdownIntervalId) {
     return;
@@ -315,14 +229,6 @@ async function initializePage() {
     metaElement.textContent = "Connection issue. Retrying...";
   }
 }
-
-redButton.addEventListener("click", () => {
-  submitSelection("RED");
-});
-
-blueButton.addEventListener("click", () => {
-  submitSelection("BLUE");
-});
 
 window.addEventListener("beforeunload", () => {
   stopPolling();

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TimesUp | Side Selection</title>
+    <title>TimesUp | Timer Tracker</title>
     <meta name="theme-color" content="#070b17" />
     <link rel="icon" type="image/png" href="./assets/timesup-logo.png" />
     <link rel="shortcut icon" href="./assets/timesup-logo.png" />
@@ -19,8 +19,8 @@
         <div class="panel__logo" aria-hidden="true"></div>
 
         <div class="brand-lockup">
-          <p class="eyebrow">Tournament Timer</p>
-          <h1 id="page-title">Side Selection</h1>
+          <p class="eyebrow">Side Selection</p>
+          <h1 id="page-title">Timer Tracker</h1>
         </div>
 
         <div id="countdown" class="countdown" aria-live="polite">05:00</div>
@@ -29,17 +29,13 @@
           <div id="progress-fill" class="progress__fill"></div>
         </div>
 
-        <div class="actions">
-          <button id="red-button" class="side-button side-button--red" type="button">
-            Red Side
-          </button>
-          <button id="blue-button" class="side-button side-button--blue" type="button">
-            Blue Side
-          </button>
+        <div class="tracker-note" aria-label="Tracker note">
+          <p class="tracker-note__title">Discord Controls Only</p>
+          <p class="tracker-note__text">Use the Discord message to choose, lock, or cancel the side.</p>
         </div>
 
         <p id="status" class="status">Waiting for side selection...</p>
-        <p id="meta" class="meta">Choose from this page or from Discord.</p>
+        <p id="meta" class="meta">Track the live timer here. Side actions happen in Discord.</p>
       </section>
     </main>
 
